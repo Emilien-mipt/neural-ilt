@@ -1,5 +1,5 @@
 import os, csv
-from torchvision.transforms import Compose, CenterCrop, ToTensor, Scale, Grayscale
+from torchvision.transforms import Compose, ToTensor, Grayscale
 import torch.utils.data as data
 from fnmatch import fnmatch
 from PIL import Image
@@ -22,7 +22,7 @@ class ILTRefineDataset(data.Dataset):
         margin=128,
         scale_dim_w=512,
         scale_dim_h=512,
-        split="ibm_opc_test",
+        split="'ibm_opc_test_full'",
         read_ref=False,
     ):
         super(ILTRefineDataset, self).__init__()
@@ -47,7 +47,7 @@ class ILTRefineDataset(data.Dataset):
         )
 
     def __getitem__(self, index):
-        split_list = ['train', 'test', 'val', 'ibm_opc_test', 'ibm_opc_test_ext',
+        split_list = ['train', 'test', 'val', 'ibm_opc_test', 'ibm_opc_test_ext', 'ibm_opc_test_full',
                       'train_via', 'test_via', 'baseline_via']
         if self.split in split_list:
             layout_design_name = self.layouts[index].split("/")[-1].split("_")[0]
@@ -59,7 +59,7 @@ class ILTRefineDataset(data.Dataset):
                 )
             else:
                 layout, scale_factor, new_cord = self.load_img(
-                    self.layouts[index], ref_info=None, slient=False
+                    self.layouts[index], ref_info=None, silent=False
                 )
             target = self.load_target_img(self.layouts[index])
             return layout, target, scale_factor, new_cord, layout_name
@@ -70,7 +70,7 @@ class ILTRefineDataset(data.Dataset):
         return len(self.layouts)
 
     def load_refine_dataset(self, data_root, split):
-        split_list = ['train', 'test', 'val', 'ibm_opc_test', 'ibm_opc_test_ext',
+        split_list = ['train', 'test', 'val', 'ibm_opc_test', 'ibm_opc_test_ext', 'ibm_opc_test_full',
                       'train_via', 'test_via', 'baseline_via']
         if split not in split_list:
             raise NotImplementedError(
@@ -87,7 +87,7 @@ class ILTRefineDataset(data.Dataset):
                 layouts.append(os.path.join(os.getcwd(), image_path))
         return layouts
 
-    def load_img(self, filepath, ref_info=None, slient=True):
+    def load_img(self, filepath, ref_info=None, silent=True):
         r"""
         Load the target layout (filepath) into image tensor, process its cropped bbox on-the-fly
         Args:
@@ -146,7 +146,7 @@ class ILTRefineDataset(data.Dataset):
 
         image_tensor = self.transforms(resized_img)
 
-        if not slient:
+        if not silent:
             print(
                 "\nProcessing {} with size of".format(filepath.split("/")[-1]),
                 new_cord,

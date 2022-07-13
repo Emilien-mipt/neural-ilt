@@ -4,3 +4,4 @@ lithosim/lithosim_kernels/
 output/
 models/
 dataset/
+.idea/
