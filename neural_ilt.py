@@ -7,6 +7,7 @@ import torchvision
 import torch.optim as optim
 from torch.optim import lr_scheduler
 
+from torch.utils import model_zoo
 from torch.utils.data import DataLoader
 from dataloader.refine_data_loader import ILTRefineDataset
 
@@ -22,7 +23,7 @@ parser.add_argument("--select_by_obj", type=str2bool, default=True)
 args = parser.parse_args()
 
 
-class Neural_ILT_Wrapper:
+class NeuralILTWrapper:
     r"""
     A wrapper class for Neural-ILT instance
     On-nerual-network ILT correction as a member function, and can be executed with customized lithography settings and datasets
@@ -99,9 +100,11 @@ class Neural_ILT_Wrapper:
         self.load_in_backone_model = unet_torch.UNet(n_class=1, in_channels=1).to(
             self.device
         )
-        self.load_in_backone_model.load_state_dict(
-            torch.load(self.exp_para["ilt_model_path"], map_location=self.device)
-        )
+        print("Downloading the weights")
+        cp = model_zoo.load_url(url="https://github.com/Emilien-mipt/neural-ilt/releases/download/0.0.1/iccad_32nm_m1_wts.pth",
+                                                                                                progress=True, map_location=self.device)
+        print("The weights have been downloaded!")
+        self.load_in_backone_model.load_state_dict(cp)
 
         # Init the Neural-ILT backbone model
         self.refine_backbone_model = ILTNet(
@@ -153,7 +156,6 @@ class Neural_ILT_Wrapper:
                 continue
             inputs, labels, _, new_cord, layout_name = data
             print("\n--- Initializing Model for %s ---" % layout_name[0])
-            self.refine_backbone_model.load_state_dict(self.model_dict)
             self.refine_backbone_model.eval()
 
             inputs = inputs.to(self.device)
@@ -413,7 +415,7 @@ def run_neural_ilt_ibm_bench():
     }
 
     # Obtain data_loader from a list of masks & obtain the corresponding bboxes on-the-fly
-    nerual_ilt = Neural_ILT_Wrapper(exp_para, image_para, lithosim_para)
+    nerual_ilt = NeuralILTWrapper(exp_para, image_para, lithosim_para)
     refine_dataset = ILTRefineDataset(
         data_root=dir_parser("./", "dataset"),
         split="ibm_opc_test",
@@ -478,7 +480,7 @@ def run_neural_ilt_ibm_ext_bench():
     }
 
     # Obtain data_loader from a list of masks & obtain the corresponding bboxes on-the-fly
-    nerual_ilt = Neural_ILT_Wrapper(exp_para, image_para, lithosim_para)
+    nerual_ilt = NeuralILTWrapper(exp_para, image_para, lithosim_para)
     refine_dataset = ILTRefineDataset(
         data_root=dir_parser("./", "dataset"),
         split="ibm_opc_test_ext",
@@ -526,7 +528,6 @@ def run_inference(idx):
         "max_epe": 55,
         "save_mask": True,
         "dynamic_beta": False,
-        # "ilt_model_path": os.path.join("models/unet/", "iccad_32nm_m1_wts.pth"),
         "ilt_model_path": os.path.join("models/unet/", args.load_model_name),
         "data_set_name": "ICCAD2013-IBM-Benchmark",
         "select_by_obj": args.select_by_obj,
@@ -544,7 +545,7 @@ def run_inference(idx):
     }
 
     # Obtain data_loader from a list of masks & obtain the corresponding bboxes on-the-fly
-    nerual_ilt = Neural_ILT_Wrapper(exp_para, image_para, lithosim_para)
+    nerual_ilt = NeuralILTWrapper(exp_para, image_para, lithosim_para)
     refine_dataset = ILTRefineDataset(
         data_root=dir_parser("./", "dataset"),
         split="ibm_opc_test_full",
@@ -558,10 +559,11 @@ def run_inference(idx):
     )
     # Conduct on-neural-network ILT correction for the ICCAD-2013 IBM ext dataset
     output_dict = nerual_ilt.inference(refine_data_loader, idx)
+    return output_dict
 
 
 if __name__ == "__main__":
     print(args)
     # run_neural_ilt_ibm_bench()
     # run_neural_ilt_ibm_ext_bench()
-    run_inference(idx=20)
+    run_inference(idx=8)
