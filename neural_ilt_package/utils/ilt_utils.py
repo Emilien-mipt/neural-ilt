@@ -1,6 +1,7 @@
-import neural_ilt_package.lithosim.lithosim_cuda as litho
 import numpy as np
 import torch
+
+import neural_ilt_package.lithosim.lithosim_cuda as litho
 from neural_ilt_package.utils.epe_checker import get_epe_checkpoints
 
 

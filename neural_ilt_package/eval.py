@@ -1,9 +1,10 @@
 import argparse
 import os
 
-import neural_ilt_package.lithosim.lithosim_cuda as litho
 import torch
 import torchvision
+
+import neural_ilt_package.lithosim.lithosim_cuda as litho
 
 parser = argparse.ArgumentParser(description="take parameters")
 parser.add_argument(

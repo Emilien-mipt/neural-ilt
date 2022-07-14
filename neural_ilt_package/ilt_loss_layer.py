@@ -1,13 +1,12 @@
-import lithosim.lithosim_cuda as litho
 import numpy as np
 import torch
 import torch.nn as nn
-import neural_ilt_package.utils.ilt_utils as ilt
 from torch.autograd import Function
-from neural_ilt_package.utils.epe_checker import (
-    get_epe_checkpoints,
-    report_epe_violations,
-)
+
+import lithosim.lithosim_cuda as litho
+import neural_ilt_package.utils.ilt_utils as ilt
+from neural_ilt_package.utils.epe_checker import (get_epe_checkpoints,
+                                                  report_epe_violations)
 
 
 class ilt_loss_function(Function):

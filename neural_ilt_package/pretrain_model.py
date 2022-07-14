@@ -3,17 +3,19 @@ import os
 import time
 
 import torch
+
 from neural_ilt_package.utils.utils import dir_parser, str2bool
 
 torch.manual_seed(1)
 
-import neural_ilt_backbone
 import torch.nn as nn
 import torch.optim as optim
-import utils.train_utils as train_utils
-from dataloader.train_data_loader import OPCDataset
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
+
+import neural_ilt_backbone
+import utils.train_utils as train_utils
+from dataloader.train_data_loader import OPCDataset
 
 # Arguments
 parser = argparse.ArgumentParser(description="take parameters")

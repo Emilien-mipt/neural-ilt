@@ -2,8 +2,9 @@ import argparse
 import os
 from fnmatch import fnmatch
 
-import neural_ilt_package.lithosim.lithosim_cuda as litho
 import torch
+
+import neural_ilt_package.lithosim.lithosim_cuda as litho
 
 parser = argparse.ArgumentParser(description="take parameters")
 parser.add_argument("--kernels_root", type=str, default="lithosim_kernels/bin_data")
