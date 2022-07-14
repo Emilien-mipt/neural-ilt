@@ -1,0 +1,10 @@
+dataset/ibm_opc_test/t11_0_mask.png	dataset/ibm_opc_test/t11_0_mask.png
+dataset/ibm_opc_test/t12_0_mask.png	dataset/ibm_opc_test/t12_0_mask.png
+dataset/ibm_opc_test/t13_0_mask.png	dataset/ibm_opc_test/t13_0_mask.png
+dataset/ibm_opc_test/t14_0_mask.png	dataset/ibm_opc_test/t14_0_mask.png
+dataset/ibm_opc_test/t15_0_mask.png	dataset/ibm_opc_test/t15_0_mask.png
+dataset/ibm_opc_test/t16_0_mask.png	dataset/ibm_opc_test/t16_0_mask.png
+dataset/ibm_opc_test/t17_0_mask.png	dataset/ibm_opc_test/t17_0_mask.png
+dataset/ibm_opc_test/t18_0_mask.png	dataset/ibm_opc_test/t18_0_mask.png
+dataset/ibm_opc_test/t19_0_mask.png	dataset/ibm_opc_test/t19_0_mask.png
+dataset/ibm_opc_test/t20_0_mask.png	dataset/ibm_opc_test/t20_0_mask.png

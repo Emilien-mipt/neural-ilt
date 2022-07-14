@@ -3,5 +3,9 @@ __pycache__
 lithosim/lithosim_kernels/
 output/
 models/
-dataset/
 .idea/
+dataset/train_list.txt
+dataset/train_masks/
+dataset/val_list.txt
+dataset/train_layouts/
+dataset/test_list.txt
