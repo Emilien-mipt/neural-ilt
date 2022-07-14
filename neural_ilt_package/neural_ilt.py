@@ -7,14 +7,15 @@ import numpy as np
 import torch
 import torch.optim as optim
 import torchvision
-import neural_ilt_package.utils.unet_torch as unet_torch
 from dataloader.refine_data_loader import ILTRefineDataset
-from neural_ilt_package.ilt_loss_layer import ilt_loss_layer
-from neural_ilt_package.neural_ilt_backbone import ILTNet
 from torch.optim import lr_scheduler
 from torch.utils import model_zoo
 from torch.utils.data import DataLoader
 from utils.utils import dir_parser, str2bool
+
+import neural_ilt_package.utils.unet_torch as unet_torch
+from neural_ilt_package.ilt_loss_layer import ilt_loss_layer
+from neural_ilt_package.neural_ilt_backbone import ILTNet
 
 parser = argparse.ArgumentParser(description="take parameters")
 parser.add_argument("--gpu_no", type=int, default=0)
@@ -201,9 +202,11 @@ class NeuralILTWrapper:
             )
             mask_origin[..., y1:y2, x1:x2] = mask_crop
             if self.save_mask:
+                output_path = "neural_ilt_package/output/refine_net_output"
+                if not os.path.exists(output_path):
+                    os.makedirs(output_path, exist_ok=True)
                 best_image_path = os.path.join(
-                    "neural_ilt_package/output/refine_net_output",
-                    "%s_res.png" % (layout_name),
+                    output_path, "%s_res.png" % (layout_name)
                 )
                 print("Saving best mask in %s" % best_image_path)
                 torchvision.utils.save_image(mask_origin, best_image_path)
