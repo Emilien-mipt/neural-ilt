@@ -2,7 +2,6 @@ import argparse
 import os
 import sys
 import time
-
 from pathlib import Path
 
 import numpy as np
@@ -612,9 +611,7 @@ def run_inference(idx):
         "max_epe": 55,
         "save_mask": False,
         "dynamic_beta": False,
-        "ilt_model_path": os.path.join(
-            "./models/unet/", args.load_model_name
-        ),
+        "ilt_model_path": os.path.join("./models/unet/", args.load_model_name),
         "data_set_name": "ICCAD2013-IBM-Benchmark",
         "select_by_obj": args.select_by_obj,
     }

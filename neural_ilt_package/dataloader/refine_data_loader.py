@@ -102,9 +102,7 @@ class ILTRefineDataset(data.Dataset):
             for line in split_list.readlines():
                 line = line.split("\n")[0]
                 image_path, _ = line.split("\t")[0], line.split("\t")[1]
-                layouts.append(
-                    Path(self.data_root / image_path)
-                )
+                layouts.append(Path(self.data_root / image_path))
         return layouts
 
     def load_img(self, filepath, ref_info=None, silent=True):
