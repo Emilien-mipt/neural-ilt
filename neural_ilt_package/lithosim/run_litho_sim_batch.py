@@ -4,7 +4,8 @@ from fnmatch import fnmatch
 
 import torch
 
-import neural_ilt_package.lithosim.lithosim_cuda as litho
+from neural_ilt_package.lithosim.lithosim_cuda import (kernel_bin_preprocess,
+                                                       lithosim, load_image)
 
 parser = argparse.ArgumentParser(description="take parameters")
 parser.add_argument("--kernels_root", type=str, default="lithosim_kernels/bin_data")
@@ -25,8 +26,8 @@ def run_litho_sim_batch():
 
     kernels_root = args.kernels_root
     print("------ Start Preprocessing Kernels Data ------")
-    _, _, _ = litho.kernel_bin_preprocess(kernels_root, "focus")
-    _, _, _ = litho.kernel_bin_preprocess(kernels_root, "defocus")
+    _, _, _ = kernel_bin_preprocess(kernels_root, "focus")
+    _, _, _ = kernel_bin_preprocess(kernels_root, "defocus")
     print("------ Finish Preprocessing Kernels Data ------")
 
     litho_kernel_type = args.kernel_type
@@ -60,10 +61,10 @@ def run_litho_sim_batch():
             if fnmatch(name, "*.png"):
                 png_file = os.path.join(path, name)
                 save_name = os.path.join(output_root, name)
-                image_data = litho.load_image(png_file)
+                image_data = load_image(png_file)
                 image_data = image_data.to(device)
                 print("------ Start lithography simulation for %s ------" % name)
-                _, _ = litho.lithosim(
+                _, _ = lithosim(
                     image_data,
                     threshold,
                     kernels,

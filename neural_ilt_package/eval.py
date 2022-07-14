@@ -4,7 +4,7 @@ import os
 import torch
 import torchvision
 
-import neural_ilt_package.lithosim.lithosim_cuda as litho
+from neural_ilt_package.lithosim.lithosim_cuda import lithosim, load_image
 
 parser = argparse.ArgumentParser(description="take parameters")
 parser.add_argument(
@@ -49,15 +49,15 @@ def eval():
 
     if args.mask_file_name is not None and args.layout_file_name is not None:
         save_name = os.path.join(args.output_root, args.mask_file_name)
-        mask_data = litho.load_image(
-            os.path.join(args.mask_root, args.mask_file_name)
-        ).to(device)
-        layout_data = litho.load_image(
+        mask_data = load_image(os.path.join(args.mask_root, args.mask_file_name)).to(
+            device
+        )
+        layout_data = load_image(
             os.path.join(args.layout_root, args.layout_file_name)
         ).to(device)
 
         print("------ Start lithography simulation for %s ------" % args.mask_file_name)
-        _, wafer_nom = litho.lithosim(
+        _, wafer_nom = lithosim(
             mask_data,
             threshold,
             kernels,
@@ -67,7 +67,7 @@ def eval():
             kernels_number=args.kernel_num,
             dose=1.0,
         )
-        _, wafer_min = litho.lithosim(
+        _, wafer_min = lithosim(
             mask_data,
             threshold,
             kernels_def,
@@ -77,7 +77,7 @@ def eval():
             kernels_number=args.kernel_num,
             dose=0.98,
         )
-        _, wafer_max = litho.lithosim(
+        _, wafer_max = lithosim(
             mask_data,
             threshold,
             kernels,

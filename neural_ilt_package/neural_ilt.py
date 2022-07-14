@@ -10,12 +10,12 @@ import torchvision
 from torch.optim import lr_scheduler
 from torch.utils import model_zoo
 from torch.utils.data import DataLoader
+from utils.utils import dir_parser, str2bool
 
-import neural_ilt_package.utils.unet_torch as unet_torch
-from dataloader.refine_data_loader import ILTRefineDataset
+from neural_ilt_package.dataloader.refine_data_loader import ILTRefineDataset
 from neural_ilt_package.ilt_loss_layer import ilt_loss_layer
 from neural_ilt_package.neural_ilt_backbone import ILTNet
-from utils.utils import dir_parser, str2bool
+from neural_ilt_package.utils.unet_torch import UNet
 
 parser = argparse.ArgumentParser(description="take parameters")
 parser.add_argument("--gpu_no", type=int, default=0)
@@ -99,9 +99,7 @@ class NeuralILTWrapper:
         )
 
         # Init the Unet & parse in the pretrained weights
-        self.load_in_backone_model = unet_torch.UNet(n_class=1, in_channels=1).to(
-            self.device
-        )
+        self.load_in_backone_model = UNet(n_class=1, in_channels=1).to(self.device)
         print("Loading the weights")
         cp = model_zoo.load_url(
             url="https://github.com/Emilien-mipt/neural-ilt/releases/download/0.0.1/iccad_32nm_m1_wts.pth",

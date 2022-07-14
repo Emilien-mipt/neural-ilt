@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-import neural_ilt_package.lithosim.lithosim_cuda as litho
+from neural_ilt_package.lithosim.lithosim_cuda import convolve_kernel, lithosim
 from neural_ilt_package.utils.epe_checker import get_epe_checkpoints
 
 
@@ -23,7 +23,7 @@ def compute_common_term(
     r"""
     Compute the common term for graident calculation
     """
-    intensity_map, _ = litho.lithosim(
+    intensity_map, _ = lithosim(
         mask,
         None,
         kernels,
@@ -88,7 +88,7 @@ def compute_gradient(
     for cp in checkpoints["v_pts"]:
         mask_epe_roi[:, :, cp[1], (cp[0] - epe_offset) : (cp[0] + epe_offset)] = 1
 
-    mask_convolve_kernel_ct_output = litho.convolve_kernel(
+    mask_convolve_kernel_ct_output = convolve_kernel(
         mask, kernels_ct, weight, dose
     )  # [1 * H * W]
     mask_convolve_kernel_ct_output = (
@@ -98,20 +98,20 @@ def compute_gradient(
     # Here we need to flip the kernels and kernels_ct => rotate H and H* by 180 degrees
     kernels_flip = torch.flip(kernels, [1, 2])
     kernels_ct_flip = torch.flip(kernels_ct, [1, 2])
-    gradient_right_term = litho.convolve_kernel(
+    gradient_right_term = convolve_kernel(
         mask_convolve_kernel_ct_output, kernels_flip, weight, dose
     ).real  # [1 * H * W], take the real part
     gradient_right_term_epe = (
         gradient_right_term * mask_epe_roi
     )  # [1 * H * W], take the real part
 
-    mask_convolve_kernel_output = litho.convolve_kernel(
+    mask_convolve_kernel_output = convolve_kernel(
         mask, kernels, weight, dose
     )  # [1 * H * W]
     mask_convolve_kernel_output = (
         mask_convolve_kernel_output * common_term
     )  # real_part = real_part * common_term, imagine_part = imagine_part * common_term
-    gradient_left_term = litho.convolve_kernel(
+    gradient_left_term = convolve_kernel(
         mask_convolve_kernel_output, kernels_ct_flip, weight, dose
     ).real  # [1 * H * W], take the real part
     gradient_left_term_epe = (
@@ -168,7 +168,7 @@ def compute_convolve_sigmoid_gradient(
     Return:
         Gradient tensor of sig(convolve(:,:))
     """
-    intensity_map, _ = litho.lithosim(
+    intensity_map, _ = lithosim(
         mask,
         None,
         kernels,
@@ -189,22 +189,22 @@ def compute_convolve_sigmoid_gradient(
     kernels_flip = torch.flip(kernels, [1, 2])
     kernels_ct_flip = torch.flip(kernels_ct, [1, 2])
 
-    mask_convolve_kernel_ct_output = litho.convolve_kernel(
+    mask_convolve_kernel_ct_output = convolve_kernel(
         mask, kernels_ct, weight, dose
     )  # convolve(mask, kernels_ct)
     mask_convolve_kernel_ct_output = (
         mask_convolve_kernel_ct_output * common_term
     )  # convolve(mask, kernels_ct) * z * (1 - z)
-    gradient_right_term = litho.convolve_kernel(
+    gradient_right_term = convolve_kernel(
         mask_convolve_kernel_ct_output, kernels_flip, weight, dose
     ).real  # convolve((convolve(mask, kernels_ct) * z * (1 - z)), kernels), [1 * H * W], take the real part
-    mask_convolve_kernel_output = litho.convolve_kernel(
+    mask_convolve_kernel_output = convolve_kernel(
         mask, kernels, weight, dose
     )  # convolve(mask, kernels)
     mask_convolve_kernel_output = (
         mask_convolve_kernel_output * common_term
     )  # convolve(mask, kernels) * z * (1 - z)
-    gradient_left_term = litho.convolve_kernel(
+    gradient_left_term = convolve_kernel(
         mask_convolve_kernel_output, kernels_ct_flip, weight, dose
     ).real  # convolve((convolve(mask, kernels) * z * (1 - z)), kernels_ct), [1 * H * W], take the real part
     discrete_penalty_mask = 0.025 * (

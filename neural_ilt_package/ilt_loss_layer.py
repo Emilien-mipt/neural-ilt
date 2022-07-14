@@ -1,12 +1,15 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from lithosim.lithosim_cuda import lithosim
 from torch.autograd import Function
 
-import lithosim.lithosim_cuda as litho
-import neural_ilt_package.utils.ilt_utils as ilt
 from neural_ilt_package.utils.epe_checker import (get_epe_checkpoints,
                                                   report_epe_violations)
+from neural_ilt_package.utils.ilt_utils import (bit_mask_to_two_value_mask,
+                                                compute_gradient,
+                                                compute_gradient_scale,
+                                                sigmoid_ilt_mask)
 
 
 class ilt_loss_function(Function):
@@ -27,11 +30,11 @@ class ilt_loss_function(Function):
             Loss tensor
         """
         gamma = 4
-        mask_pred = ilt.bit_mask_to_two_value_mask(
+        mask_pred = bit_mask_to_two_value_mask(
             mask_pred
         )  # Change mask_pred from \in {0,1} to \in {-1,1}
-        mask_pred_sig = ilt.sigmoid_ilt_mask(mask_pred, theta_m=4)
-        result, _ = litho.lithosim(
+        mask_pred_sig = sigmoid_ilt_mask(mask_pred, theta_m=4)
+        result, _ = lithosim(
             mask_pred_sig,
             0.225,
             kernels,
@@ -54,7 +57,7 @@ class ilt_loss_function(Function):
             Gradient tensor
         """
         mask_pred_sig, target, kernels, kernels_ct, weight = ctx.saved_tensors
-        grad_input = ilt.compute_gradient(
+        grad_input = compute_gradient(
             mask_pred_sig,
             target,
             kernels,
@@ -103,10 +106,10 @@ class ilt_loss_scale_function(Function):
 
         # The exact ILT forward loss
         # ilt_loss = ||litho(threshold(Phi(Z_t, w)), P_nom) - Z_t||_gamma
-        mask_pred_sig = ilt.bit_mask_to_two_value_mask(
+        mask_pred_sig = bit_mask_to_two_value_mask(
             mask_pred
         )  # change mask_pred \in {0,1} to \in {-1,1}
-        mask_pred_sig = ilt.sigmoid_ilt_mask(mask_pred_sig, theta_m=4)
+        mask_pred_sig = sigmoid_ilt_mask(mask_pred_sig, theta_m=4)
         mask_pred_sig_backup = torch.clone(mask_pred_sig)
         if output_litho_l2_loss:
             # It is easier to monitor thru L2 loss, rather than the exact ILT loss
@@ -145,7 +148,7 @@ class ilt_loss_scale_function(Function):
             torch.cuda.FloatTensor
         )
 
-        result, bin_mask = litho.lithosim(
+        result, bin_mask = lithosim(
             mask_pred_bin_orig_size,
             0.225,
             kernels,
@@ -161,7 +164,7 @@ class ilt_loss_scale_function(Function):
             ilt_loss = (result - target).pow(4).mean()
             l2_loss = (bin_mask - target).abs().mean()
         elif cplx_obj:
-            result_inner, bin_mask_inner = litho.lithosim(
+            result_inner, bin_mask_inner = lithosim(
                 mask_pred_bin_orig_size,
                 0.225,
                 kernel_def,
@@ -172,7 +175,7 @@ class ilt_loss_scale_function(Function):
                 return_binary_wafer=True,
                 dose=0.98,
             )
-            result_outer, bin_mask_outer = litho.lithosim(
+            result_outer, bin_mask_outer = lithosim(
                 mask_pred_bin_orig_size,
                 0.225,
                 kernels,
@@ -256,7 +259,7 @@ class ilt_loss_scale_function(Function):
         ) = ctx.saved_tensors
         new_cord = [new_cord[0], new_cord[1], new_cord[2], new_cord[3]]
 
-        grad_input = ilt.compute_gradient_scale(
+        grad_input = compute_gradient_scale(
             mask_pred_sig,
             target,
             kernels,
