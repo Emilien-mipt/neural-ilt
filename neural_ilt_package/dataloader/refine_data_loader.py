@@ -1,5 +1,6 @@
 import csv
 import os
+from pathlib import Path
 
 import torch.utils.data as data
 from PIL import Image
@@ -58,8 +59,8 @@ class ILTRefineDataset(data.Dataset):
             "baseline_via",
         ]
         if self.split in split_list:
-            layout_design_name = self.layouts[index].split("/")[-1].split("_")[0]
-            layout_name = self.layouts[index].split("/")[-1]
+            layout_design_name = str(self.layouts[index]).split("/")[-1].split("_")[0]
+            layout_name = str(self.layouts[index]).split("/")[-1]
             if self.read_ref:
                 layout, scale_factor, new_cord = self.load_img(
                     self.layouts[index],
@@ -102,7 +103,7 @@ class ILTRefineDataset(data.Dataset):
                 line = line.split("\n")[0]
                 image_path, _ = line.split("\t")[0], line.split("\t")[1]
                 layouts.append(
-                    os.path.join(os.getcwd(), "neural_ilt_package", image_path)
+                    Path(self.data_root / image_path)
                 )
         return layouts
 
@@ -167,7 +168,7 @@ class ILTRefineDataset(data.Dataset):
 
         if not silent:
             print(
-                "\nProcessing {} with size of".format(filepath.split("/")[-1]),
+                "\nProcessing {} with size of".format(str(filepath).split("/")[-1]),
                 new_cord,
                 "and scale factor = [{}, {}]".format(scale_factor_w, scale_factor_h),
             )
