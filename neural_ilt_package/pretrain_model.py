@@ -1,17 +1,19 @@
-import os, time, argparse
-from utils.utils import str2bool, dir_parser
+import argparse
+import os
+import time
 
 import torch
+from neural_ilt_package.utils.utils import dir_parser, str2bool
+
 torch.manual_seed(1)
 
+import neural_ilt_backbone
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim import lr_scheduler
-
-from torch.utils.data import DataLoader
-from dataloader.train_data_loader import OPCDataset
 import utils.train_utils as train_utils
-import neural_ilt_backbone
+from dataloader.train_data_loader import OPCDataset
+from torch.optim import lr_scheduler
+from torch.utils.data import DataLoader
 
 # Arguments
 parser = argparse.ArgumentParser(description="take parameters")
@@ -128,12 +130,12 @@ if __name__ == "__main__":
     r"""
     Domain specific training recipe for Neural-ILT, section 3.5 (Jiang et al., ICCAD'20):
           Loss = supervised_loss_term + \alpha * ilt_loss_term + \beta * cplx_loss_term
-    where,  
-          supervised_loss_term = ||phi(z_t, w) - m||_2 
+    where,
+          supervised_loss_term = ||phi(z_t, w) - m||_2
           ilt_loss_term = ||litho(phi(z_t, w), P_nom) - z_t||_gamma
           cplx_loss_term = ||litho(phi(z_t, w), P_max) - litho(phi(z_t, w), P_min)||_gamma
-    By default,    
-          \alpha = 1, \beta = 0 
+    By default,
+          \alpha = 1, \beta = 0
     """
     if args.train_mode:
         # Load in the lithography kernels
@@ -170,7 +172,7 @@ if __name__ == "__main__":
             in_channels=1,
         ).to(device)
         from ilt_loss_layer import ilt_loss_layer
-        
+
         cplx_loss_layer = ilt_loss_layer(
             kernels,
             kernels_ct,

@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
 
-
 # U-Net implementation for PyTorch
 # from https://github.com/usuyama/pytorch-unet/blob/master/pytorch_unet.py
+
 
 def double_conv(in_channels, out_channels):
     return nn.Sequential(
@@ -18,6 +18,7 @@ class UNet(nn.Module):
     r"""
     Standard U-Net implementation based on https://github.com/usuyama/pytorch-unet
     """
+
     def __init__(self, n_class, in_channels=1):
         super(UNet, self).__init__()
 

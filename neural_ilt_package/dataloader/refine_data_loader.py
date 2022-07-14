@@ -1,9 +1,9 @@
-import os, csv
-from torchvision.transforms import Compose, ToTensor, Grayscale
+import csv
+import os
+
 import torch.utils.data as data
-from fnmatch import fnmatch
 from PIL import Image
-import numpy as np
+from torchvision.transforms import Compose, Grayscale, ToTensor
 
 
 class ILTRefineDataset(data.Dataset):
@@ -16,6 +16,7 @@ class ILTRefineDataset(data.Dataset):
         split: the list name of the dataset
         read_ref: read the pre-computed cropped bbox information or not
     """
+
     def __init__(
         self,
         data_root,
@@ -42,20 +43,27 @@ class ILTRefineDataset(data.Dataset):
         self.read_ref = read_ref
         if self.read_ref:
             self.ref_crop_box_dict = self.read_ref_crop_box_dict()
-        self.layouts = self.load_refine_dataset(
-            self.data_root, self.split
-        )
+        self.layouts = self.load_refine_dataset(self.data_root, self.split)
 
     def __getitem__(self, index):
-        split_list = ['train', 'test', 'val', 'ibm_opc_test', 'ibm_opc_test_ext', 'ibm_opc_test_full',
-                      'train_via', 'test_via', 'baseline_via']
+        split_list = [
+            "train",
+            "test",
+            "val",
+            "ibm_opc_test",
+            "ibm_opc_test_ext",
+            "ibm_opc_test_full",
+            "train_via",
+            "test_via",
+            "baseline_via",
+        ]
         if self.split in split_list:
             layout_design_name = self.layouts[index].split("/")[-1].split("_")[0]
             layout_name = self.layouts[index].split("/")[-1]
             if self.read_ref:
                 layout, scale_factor, new_cord = self.load_img(
                     self.layouts[index],
-                    ref_info=self.ref_crop_box_dict[layout_design_name]
+                    ref_info=self.ref_crop_box_dict[layout_design_name],
                 )
             else:
                 layout, scale_factor, new_cord = self.load_img(
@@ -70,8 +78,17 @@ class ILTRefineDataset(data.Dataset):
         return len(self.layouts)
 
     def load_refine_dataset(self, data_root, split):
-        split_list = ['train', 'test', 'val', 'ibm_opc_test', 'ibm_opc_test_ext', 'ibm_opc_test_full',
-                      'train_via', 'test_via', 'baseline_via']
+        split_list = [
+            "train",
+            "test",
+            "val",
+            "ibm_opc_test",
+            "ibm_opc_test_ext",
+            "ibm_opc_test_full",
+            "train_via",
+            "test_via",
+            "baseline_via",
+        ]
         if split not in split_list:
             raise NotImplementedError(
                 "Parameter {split} should be one of %s" % split_list
@@ -84,7 +101,9 @@ class ILTRefineDataset(data.Dataset):
             for line in split_list.readlines():
                 line = line.split("\n")[0]
                 image_path, _ = line.split("\t")[0], line.split("\t")[1]
-                layouts.append(os.path.join(os.getcwd(), image_path))
+                layouts.append(
+                    os.path.join(os.getcwd(), "neural_ilt_package", image_path)
+                )
         return layouts
 
     def load_img(self, filepath, ref_info=None, silent=True):

@@ -1,9 +1,9 @@
-import os, csv
-from torchvision.transforms import Compose, CenterCrop, ToTensor, Scale, Grayscale
+import csv
+import os
+
 import torch.utils.data as data
-from fnmatch import fnmatch
 from PIL import Image
-import numpy as np
+from torchvision.transforms import Compose, Grayscale, ToTensor
 
 
 class OPCDataset(data.Dataset):
@@ -16,6 +16,7 @@ class OPCDataset(data.Dataset):
         split: the list name of the dataset
         read_ref: read the pre-computed cropped bbox information or not
     """
+
     def __init__(
         self,
         data_root,
@@ -68,15 +69,14 @@ class OPCDataset(data.Dataset):
                     self.images[index], ref_info=self.ref_crop_box_dict[img_design_name]
                 )
                 label, _, _ = self.load_img(
-                    self.labels[index], ref_info=self.ref_crop_box_dict[label_design_name]
+                    self.labels[index],
+                    ref_info=self.ref_crop_box_dict[label_design_name],
                 )
             else:
                 image, scale_factor, new_cord = self.load_img(
                     self.images[index], ref_info=None
                 )
-                label, _, _ = self.load_img(
-                    self.labels[index], ref_info=None
-                )
+                label, _, _ = self.load_img(self.labels[index], ref_info=None)
 
             layout = Image.open(self.layouts[index])
             layout = layout.convert("L")
@@ -192,4 +192,3 @@ class OPCDataset(data.Dataset):
         return any(
             filename.endswith(extension) for extension in [".png", ".jpg", ".jpeg"]
         )
-

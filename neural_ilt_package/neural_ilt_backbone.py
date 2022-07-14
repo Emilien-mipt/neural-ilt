@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from ilt_loss_layer import ilt_loss_layer
+from neural_ilt_package.ilt_loss_layer import ilt_loss_layer
 
 
 def double_conv(in_channels, out_channels):
@@ -11,14 +11,17 @@ def double_conv(in_channels, out_channels):
         nn.ReLU(inplace=True),
     )
 
+
 # U-Net part is based on the implementation of
 # https://github.com/usuyama/pytorch-unet/blob/master/pytorch_unet.py
 
+
 class ILTNet(nn.Module):
     r"""
-    ILTNet: 
+    ILTNet:
     The main backbone model of Neural-ILT, a standard U-Net + ILT correction layer
     """
+
     def __init__(
         self,
         n_class,
@@ -61,7 +64,7 @@ class ILTNet(nn.Module):
             weight_def,
             cycle_mode=cycle_mode,
             cplx_obj=cplx_obj,
-            report_epe=report_epe
+            report_epe=report_epe,
         )
         self.report_epe = report_epe
 

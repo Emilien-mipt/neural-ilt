@@ -1,19 +1,20 @@
-import os, time, sys, argparse
+import argparse
+import os
+import sys
+import time
+
 import numpy as np
-from utils.utils import str2bool, dir_parser
-
 import torch
-import torchvision
 import torch.optim as optim
+import torchvision
+import neural_ilt_package.utils.unet_torch as unet_torch
+from dataloader.refine_data_loader import ILTRefineDataset
+from neural_ilt_package.ilt_loss_layer import ilt_loss_layer
+from neural_ilt_package.neural_ilt_backbone import ILTNet
 from torch.optim import lr_scheduler
-
 from torch.utils import model_zoo
 from torch.utils.data import DataLoader
-from dataloader.refine_data_loader import ILTRefineDataset
-
-import utils.unet_torch as unet_torch
-from ilt_loss_layer import ilt_loss_layer
-from neural_ilt_backbone import ILTNet
+from utils.utils import dir_parser, str2bool
 
 parser = argparse.ArgumentParser(description="take parameters")
 parser.add_argument("--gpu_no", type=int, default=0)
@@ -35,7 +36,7 @@ class NeuralILTWrapper:
         Args:
             exp_para: experiment-relevant parameters
             image_para: image-relevant parameters
-            lithosim_para: lithosim-relevant parameters        
+            lithosim_para: lithosim-relevant parameters
         """
 
         # Set up the basic parameters
@@ -60,9 +61,9 @@ class NeuralILTWrapper:
         if exp_para["max_epe"]:
             self.max_epe = exp_para["max_epe"]
 
-        self.margin = image_para["bbox_margin"],
-        self.scale_dim_w = image_para["scale_size"],
-        self.scale_dim_h = image_para["scale_size"],
+        self.margin = (image_para["bbox_margin"],)
+        self.scale_dim_w = (image_para["scale_size"],)
+        self.scale_dim_h = (image_para["scale_size"],)
 
         print("-------- Loading Neural-ILT Model & Data --------")
 
@@ -100,11 +101,14 @@ class NeuralILTWrapper:
         self.load_in_backone_model = unet_torch.UNet(n_class=1, in_channels=1).to(
             self.device
         )
-        print("Downloading the weights")
-        cp = model_zoo.load_url(url="https://github.com/Emilien-mipt/neural-ilt/releases/download/0.0.1/iccad_32nm_m1_wts.pth",
-                                                                                                progress=True, map_location=self.device)
-        print("The weights have been downloaded!")
+        print("Loading the weights")
+        cp = model_zoo.load_url(
+            url="https://github.com/Emilien-mipt/neural-ilt/releases/download/0.0.1/iccad_32nm_m1_wts.pth",
+            progress=True,
+            map_location=self.device,
+        )
         self.load_in_backone_model.load_state_dict(cp)
+        print("The weights have been loaded!")
 
         # Init the Neural-ILT backbone model
         self.refine_backbone_model = ILTNet(
@@ -151,7 +155,8 @@ class NeuralILTWrapper:
     def inference(self, dataloader, select_idx):
         start_time = time.time()
         for idx, data in enumerate(
-                dataloader):  # For each input target layout, conduct the on-neural-network ILT correction
+            dataloader
+        ):  # For each input target layout, conduct the on-neural-network ILT correction
             if idx != select_idx - 1:
                 continue
             inputs, labels, _, new_cord, layout_name = data
@@ -184,9 +189,7 @@ class NeuralILTWrapper:
                 best_masks = masks.detach()
 
             best_pred = torch.sigmoid(best_masks)
-            cur_mask = (best_pred > 0.5).type(
-                torch.cuda.FloatTensor
-            )  # 1 * 1 * H * W
+            cur_mask = (best_pred > 0.5).type(torch.cuda.FloatTensor)  # 1 * 1 * H * W
             mask_crop = torch.nn.functional.interpolate(
                 cur_mask, size=(abs(y2 - y1), abs(x2 - x1)), mode="nearest"
             )  # 1 * 1 * H * W
@@ -199,7 +202,8 @@ class NeuralILTWrapper:
             mask_origin[..., y1:y2, x1:x2] = mask_crop
             if self.save_mask:
                 best_image_path = os.path.join(
-                    "output/refine_net_output", "%s_res.png" % (layout_name)
+                    "neural_ilt_package/output/refine_net_output",
+                    "%s_res.png" % (layout_name),
                 )
                 print("Saving best mask in %s" % best_image_path)
                 torchvision.utils.save_image(mask_origin, best_image_path)
@@ -212,16 +216,18 @@ class NeuralILTWrapper:
                     cur_loss,
                     l2_loss.item(),
                     cplx_loss.item(),
-                    cur_epe_vios
+                    cur_epe_vios,
                 )
             )
-            return {'loss': cur_loss, 'mask': mask_origin}
+            return {"loss": cur_loss, "mask": mask_origin}
 
     def neural_ilt_correction(self, dataloaders):
         sys.setrecursionlimit(10000)
         start_time = time.time()
         online_train_loss_list = {}
-        for idx, data in enumerate(dataloaders):  # For each input target layout, conduct the on-neural-network ILT correction
+        for idx, data in enumerate(
+            dataloaders
+        ):  # For each input target layout, conduct the on-neural-network ILT correction
             best_counter = 0
             inputs, labels, _, new_cord, layout_name = data
             print("\n--- Initializing Model for %s ---" % layout_name[0])
@@ -253,7 +259,9 @@ class NeuralILTWrapper:
 
             cur_image_start_time = time.time()
             iter_since = time.time()
-            for iteration in range(self.refine_iter_num):  # Maximum on-neural-network ILT correction iterations
+            for iteration in range(
+                self.refine_iter_num
+            ):  # Maximum on-neural-network ILT correction iterations
                 self.optimizer_ft.zero_grad()
                 with torch.set_grad_enabled(True):
                     # Forward inference of Neural-ILT, calculate the corresponding losses
@@ -271,11 +279,21 @@ class NeuralILTWrapper:
                     self.optimizer_ft.step()
 
                     cur_epe_vios = epe_violation.item()
-                    cur_loss = my_beta * cplx_loss.item() + l2_loss.item()  # select best solution by objective score = alpha * l2_loss + beta * cplx_loss
-                    if not self.select_by_obj:  # select best solution by printability score = l2_loss + cplx_loss
+                    cur_loss = (
+                        my_beta * cplx_loss.item() + l2_loss.item()
+                    )  # select best solution by objective score = alpha * l2_loss + beta * cplx_loss
+                    if (
+                        not self.select_by_obj
+                    ):  # select best solution by printability score = l2_loss + cplx_loss
                         cur_loss = cplx_loss.item() + l2_loss.item()
-                    update_best = cur_epe_vios <= best_epe_vios and cur_loss < best_loss  # consider EPE violation concurrently
-                    if update_best and l2_loss.item() < self.max_l2 and cur_epe_vios < self.max_epe:
+                    update_best = (
+                        cur_epe_vios <= best_epe_vios and cur_loss < best_loss
+                    )  # consider EPE violation concurrently
+                    if (
+                        update_best
+                        and l2_loss.item() < self.max_l2
+                        and cur_epe_vios < self.max_epe
+                    ):
                         best_loss = cur_loss
                         best_l2_loss = l2_loss.item()
                         best_epe_vios = cur_epe_vios
@@ -299,7 +317,7 @@ class NeuralILTWrapper:
                                 loss.item(),
                                 l2_loss.item(),
                                 cplx_loss.item(),
-                                cur_epe_vios
+                                cur_epe_vios,
                             )
                         )
                         iter_since = time.time()
@@ -333,7 +351,8 @@ class NeuralILTWrapper:
                 )
                 mask_origin[..., y1:y2, x1:x2] = mask_crop
                 best_image_path = os.path.join(
-                    "output/refine_net_output", "%s_res.png" % (layout_name)
+                    "neural_ilt_package/output/refine_net_output",
+                    "%s_res.png" % (layout_name),
                 )
                 print("Saving best mask in %s" % best_image_path)
                 torchvision.utils.save_image(mask_origin, best_image_path)
@@ -346,7 +365,7 @@ class NeuralILTWrapper:
                     best_loss,
                     best_l2_loss,
                     best_cplx_loss,
-                    best_epe_vios
+                    best_epe_vios,
                 )
             )
 
@@ -398,7 +417,9 @@ def run_neural_ilt_ibm_bench():
         "save_mask": True,
         "dynamic_beta": False,
         # "ilt_model_path": os.path.join("models/unet/", "iccad_32nm_m1_wts.pth"),
-        "ilt_model_path": os.path.join("models/unet/", args.load_model_name),
+        "ilt_model_path": os.path.join(
+            "neural_ilt_package/models/unet/", args.load_model_name
+        ),
         "data_set_name": "ICCAD2013-IBM-Benchmark",
         "select_by_obj": args.select_by_obj,
     }
@@ -410,14 +431,14 @@ def run_neural_ilt_ibm_bench():
     }
 
     lithosim_para = {
-        "kernels_root": "lithosim/lithosim_kernels/torch_tensor",
+        "kernels_root": "neural_ilt_package/lithosim/lithosim_kernels/torch_tensor",
         "kernel_num": 24,
     }
 
     # Obtain data_loader from a list of masks & obtain the corresponding bboxes on-the-fly
     nerual_ilt = NeuralILTWrapper(exp_para, image_para, lithosim_para)
     refine_dataset = ILTRefineDataset(
-        data_root=dir_parser("./", "dataset"),
+        data_root=dir_parser("./neural_ilt_package", "dataset"),
         split="ibm_opc_test",
         margin=image_para["bbox_margin"],
         scale_dim_w=image_para["scale_size"],
@@ -429,25 +450,51 @@ def run_neural_ilt_ibm_bench():
     )
 
     # Conduct on-neural-network ILT correction for the ICCAD-2013 IBM contest dataset
-    l2_avg, pv_avg, epe_avg, runtime_avg = nerual_ilt.neural_ilt_correction(refine_data_loader)
+    l2_avg, pv_avg, epe_avg, runtime_avg = nerual_ilt.neural_ilt_correction(
+        refine_data_loader
+    )
 
     # Report results, baselines quoted from GAN-OPC (Yang et al., TCAD'20)
     mosaic_avg = [44012.7, 50899.5, 788.5]
     ganopc_avg = [40094.6, 50568.1, 384.7]
     pganopc_avg = [39948.9, 49957.2, 371.3]
     eganopc_avg = [39500.8, 48917.8, 262]
-    print("Ratio_to_mosaic:\tL2:%.2f%%\tPVBand:%.2f%%\tPrintability(L2+PVB):%.2f%%\tRuntime:%.2f%%" %
-          (l2_avg / mosaic_avg[0] * 100, pv_avg / mosaic_avg[1] * 100,
-           (l2_avg + pv_avg) / (mosaic_avg[0] + mosaic_avg[1]) * 100, runtime_avg / mosaic_avg[2] * 100))
-    print("Ratio_to_ganopc:\tL2:%.2f%%\tPVBand:%.2f%%\tPrintability(L2+PVB):%.2f%%\tRuntime:%.2f%%" %
-          (l2_avg / ganopc_avg[0] * 100, pv_avg / ganopc_avg[1] * 100,
-           (l2_avg + pv_avg) / (ganopc_avg[0] + ganopc_avg[1]) * 100, runtime_avg / ganopc_avg[2] * 100))
-    print("Ratio_to_pganopc:\tL2:%.2f%%\tPVBand:%.2f%%\tPrintability(L2+PVB):%.2f%%\tRuntime:%.2f%%" %
-          (l2_avg / pganopc_avg[0] * 100, pv_avg / pganopc_avg[1] * 100,
-           (l2_avg + pv_avg) / (pganopc_avg[0] + pganopc_avg[1]) * 100, runtime_avg / pganopc_avg[2] * 100))
-    print("Ratio_to_eganopc:\tL2:%.2f%%\tPVBand:%.2f%%\tPrintability(L2+PVB):%.2f%%\tRuntime:%.2f%%" %
-          (l2_avg / eganopc_avg[0] * 100, pv_avg / eganopc_avg[1] * 100,
-           (l2_avg + pv_avg) / (eganopc_avg[0] + eganopc_avg[1]) * 100, runtime_avg / eganopc_avg[2] * 100))
+    print(
+        "Ratio_to_mosaic:\tL2:%.2f%%\tPVBand:%.2f%%\tPrintability(L2+PVB):%.2f%%\tRuntime:%.2f%%"
+        % (
+            l2_avg / mosaic_avg[0] * 100,
+            pv_avg / mosaic_avg[1] * 100,
+            (l2_avg + pv_avg) / (mosaic_avg[0] + mosaic_avg[1]) * 100,
+            runtime_avg / mosaic_avg[2] * 100,
+        )
+    )
+    print(
+        "Ratio_to_ganopc:\tL2:%.2f%%\tPVBand:%.2f%%\tPrintability(L2+PVB):%.2f%%\tRuntime:%.2f%%"
+        % (
+            l2_avg / ganopc_avg[0] * 100,
+            pv_avg / ganopc_avg[1] * 100,
+            (l2_avg + pv_avg) / (ganopc_avg[0] + ganopc_avg[1]) * 100,
+            runtime_avg / ganopc_avg[2] * 100,
+        )
+    )
+    print(
+        "Ratio_to_pganopc:\tL2:%.2f%%\tPVBand:%.2f%%\tPrintability(L2+PVB):%.2f%%\tRuntime:%.2f%%"
+        % (
+            l2_avg / pganopc_avg[0] * 100,
+            pv_avg / pganopc_avg[1] * 100,
+            (l2_avg + pv_avg) / (pganopc_avg[0] + pganopc_avg[1]) * 100,
+            runtime_avg / pganopc_avg[2] * 100,
+        )
+    )
+    print(
+        "Ratio_to_eganopc:\tL2:%.2f%%\tPVBand:%.2f%%\tPrintability(L2+PVB):%.2f%%\tRuntime:%.2f%%"
+        % (
+            l2_avg / eganopc_avg[0] * 100,
+            pv_avg / eganopc_avg[1] * 100,
+            (l2_avg + pv_avg) / (eganopc_avg[0] + eganopc_avg[1]) * 100,
+            runtime_avg / eganopc_avg[2] * 100,
+        )
+    )
 
 
 def run_neural_ilt_ibm_ext_bench():
@@ -463,7 +510,9 @@ def run_neural_ilt_ibm_ext_bench():
         "max_epe": 75,
         "save_mask": True,
         "dynamic_beta": False,
-        "ilt_model_path": os.path.join("models/unet/", args.load_model_name),
+        "ilt_model_path": os.path.join(
+            "neural_ilt_package/models/unet/", args.load_model_name
+        ),
         "data_set_name": "ICCAD2013-IBM-ext-Benchmark",
         "select_by_obj": args.select_by_obj,
     }
@@ -475,14 +524,14 @@ def run_neural_ilt_ibm_ext_bench():
     }
 
     lithosim_para = {
-        "kernels_root": "lithosim/lithosim_kernels/torch_tensor",
+        "kernels_root": "neural_ilt_package/lithosim/lithosim_kernels/torch_tensor",
         "kernel_num": 24,
     }
 
     # Obtain data_loader from a list of masks & obtain the corresponding bboxes on-the-fly
     nerual_ilt = NeuralILTWrapper(exp_para, image_para, lithosim_para)
     refine_dataset = ILTRefineDataset(
-        data_root=dir_parser("./", "dataset"),
+        data_root=dir_parser("./neural_ilt_package", "dataset"),
         split="ibm_opc_test_ext",
         margin=image_para["bbox_margin"],
         scale_dim_w=image_para["scale_size"],
@@ -494,25 +543,51 @@ def run_neural_ilt_ibm_ext_bench():
     )
 
     # Conduct on-neural-network ILT correction for the ICCAD-2013 IBM ext dataset
-    l2_avg, pv_avg, epe_avg, runtime_avg = nerual_ilt.neural_ilt_correction(refine_data_loader)
+    l2_avg, pv_avg, epe_avg, runtime_avg = nerual_ilt.neural_ilt_correction(
+        refine_data_loader
+    )
 
     # Report results, baselines quoted from Neural-ILT 2.0 (Jiang et al., in submission to TCAD)
     mosaic_avg = [90486.3, 109842.7, 455]
     ganopc_avg = [89556.5, 120882.2, 364]
     pganopc_avg = [86697.4, 110330.5, 364]
     eganopc_avg = [86105.7, 108690.7, 273]
-    print("Ratio_to_mosaic:\tL2:%.2f%%\tPVBand:%.2f%%\tPrintability(L2+PVB):%.2f%%\tRuntime:%.2f%%" %
-          (l2_avg / mosaic_avg[0] * 100, pv_avg / mosaic_avg[1] * 100,
-           (l2_avg + pv_avg) / (mosaic_avg[0] + mosaic_avg[1]) * 100, runtime_avg / mosaic_avg[2] * 100))
-    print("Ratio_to_ganopc:\tL2:%.2f%%\tPVBand:%.2f%%\tPrintability(L2+PVB):%.2f%%\tRuntime:%.2f%%" %
-          (l2_avg / ganopc_avg[0] * 100, pv_avg / ganopc_avg[1] * 100,
-           (l2_avg + pv_avg) / (ganopc_avg[0] + ganopc_avg[1]) * 100, runtime_avg / ganopc_avg[2] * 100))
-    print("Ratio_to_pganopc:\tL2:%.2f%%\tPVBand:%.2f%%\tPrintability(L2+PVB):%.2f%%\tRuntime:%.2f%%" %
-          (l2_avg / pganopc_avg[0] * 100, pv_avg / pganopc_avg[1] * 100,
-           (l2_avg + pv_avg) / (pganopc_avg[0] + pganopc_avg[1]) * 100, runtime_avg / pganopc_avg[2] * 100))
-    print("Ratio_to_eganopc:\tL2:%.2f%%\tPVBand:%.2f%%\tPrintability(L2+PVB):%.2f%%\tRuntime:%.2f%%" %
-          (l2_avg / eganopc_avg[0] * 100, pv_avg / eganopc_avg[1] * 100,
-           (l2_avg + pv_avg) / (eganopc_avg[0] + eganopc_avg[1]) * 100, runtime_avg / eganopc_avg[2] * 100))
+    print(
+        "Ratio_to_mosaic:\tL2:%.2f%%\tPVBand:%.2f%%\tPrintability(L2+PVB):%.2f%%\tRuntime:%.2f%%"
+        % (
+            l2_avg / mosaic_avg[0] * 100,
+            pv_avg / mosaic_avg[1] * 100,
+            (l2_avg + pv_avg) / (mosaic_avg[0] + mosaic_avg[1]) * 100,
+            runtime_avg / mosaic_avg[2] * 100,
+        )
+    )
+    print(
+        "Ratio_to_ganopc:\tL2:%.2f%%\tPVBand:%.2f%%\tPrintability(L2+PVB):%.2f%%\tRuntime:%.2f%%"
+        % (
+            l2_avg / ganopc_avg[0] * 100,
+            pv_avg / ganopc_avg[1] * 100,
+            (l2_avg + pv_avg) / (ganopc_avg[0] + ganopc_avg[1]) * 100,
+            runtime_avg / ganopc_avg[2] * 100,
+        )
+    )
+    print(
+        "Ratio_to_pganopc:\tL2:%.2f%%\tPVBand:%.2f%%\tPrintability(L2+PVB):%.2f%%\tRuntime:%.2f%%"
+        % (
+            l2_avg / pganopc_avg[0] * 100,
+            pv_avg / pganopc_avg[1] * 100,
+            (l2_avg + pv_avg) / (pganopc_avg[0] + pganopc_avg[1]) * 100,
+            runtime_avg / pganopc_avg[2] * 100,
+        )
+    )
+    print(
+        "Ratio_to_eganopc:\tL2:%.2f%%\tPVBand:%.2f%%\tPrintability(L2+PVB):%.2f%%\tRuntime:%.2f%%"
+        % (
+            l2_avg / eganopc_avg[0] * 100,
+            pv_avg / eganopc_avg[1] * 100,
+            (l2_avg + pv_avg) / (eganopc_avg[0] + eganopc_avg[1]) * 100,
+            runtime_avg / eganopc_avg[2] * 100,
+        )
+    )
 
 
 def run_inference(idx):
@@ -528,7 +603,9 @@ def run_inference(idx):
         "max_epe": 55,
         "save_mask": True,
         "dynamic_beta": False,
-        "ilt_model_path": os.path.join("models/unet/", args.load_model_name),
+        "ilt_model_path": os.path.join(
+            "neural_ilt_package/models/unet/", args.load_model_name
+        ),
         "data_set_name": "ICCAD2013-IBM-Benchmark",
         "select_by_obj": args.select_by_obj,
     }
@@ -540,14 +617,14 @@ def run_inference(idx):
     }
 
     lithosim_para = {
-        "kernels_root": "lithosim/lithosim_kernels/torch_tensor",
+        "kernels_root": "neural_ilt_package/lithosim/lithosim_kernels/torch_tensor",
         "kernel_num": 24,
     }
 
     # Obtain data_loader from a list of masks & obtain the corresponding bboxes on-the-fly
     nerual_ilt = NeuralILTWrapper(exp_para, image_para, lithosim_para)
     refine_dataset = ILTRefineDataset(
-        data_root=dir_parser("./", "dataset"),
+        data_root=dir_parser("./neural_ilt_package", "dataset"),
         split="ibm_opc_test_full",
         margin=image_para["bbox_margin"],
         scale_dim_w=image_para["scale_size"],
@@ -566,4 +643,4 @@ if __name__ == "__main__":
     print(args)
     # run_neural_ilt_ibm_bench()
     # run_neural_ilt_ibm_ext_bench()
-    run_inference(idx=8)
+    run_inference(idx=5)
