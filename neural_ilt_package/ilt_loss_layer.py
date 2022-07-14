@@ -1,9 +1,9 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from lithosim.lithosim_cuda import lithosim
 from torch.autograd import Function
 
+from neural_ilt_package.lithosim.lithosim_cuda import lithosim
 from neural_ilt_package.utils.epe_checker import (get_epe_checkpoints,
                                                   report_epe_violations)
 from neural_ilt_package.utils.ilt_utils import (bit_mask_to_two_value_mask,

@@ -3,6 +3,8 @@ import os
 import sys
 import time
 
+from pathlib import Path
+
 import numpy as np
 import torch
 import torch.optim as optim
@@ -10,12 +12,18 @@ import torchvision
 from torch.optim import lr_scheduler
 from torch.utils import model_zoo
 from torch.utils.data import DataLoader
-from utils.utils import dir_parser, str2bool
 
 from neural_ilt_package.dataloader.refine_data_loader import ILTRefineDataset
 from neural_ilt_package.ilt_loss_layer import ilt_loss_layer
 from neural_ilt_package.neural_ilt_backbone import ILTNet
 from neural_ilt_package.utils.unet_torch import UNet
+from neural_ilt_package.utils.utils import dir_parser, str2bool
+
+# Project Directories
+PACKAGE_ROOT = Path(__file__).resolve().parent
+ROOT = PACKAGE_ROOT.parent
+DATASET_DIR = PACKAGE_ROOT / "dataset"
+KERNEL_ROOT = PACKAGE_ROOT / "lithosim" / "lithosim_kernels" / "torch_tensor"
 
 parser = argparse.ArgumentParser(description="take parameters")
 parser.add_argument("--gpu_no", type=int, default=0)
@@ -602,10 +610,10 @@ def run_inference(idx):
         "step_size": 35,
         "max_l2": 95000,
         "max_epe": 55,
-        "save_mask": True,
+        "save_mask": False,
         "dynamic_beta": False,
         "ilt_model_path": os.path.join(
-            "neural_ilt_package/models/unet/", args.load_model_name
+            "./models/unet/", args.load_model_name
         ),
         "data_set_name": "ICCAD2013-IBM-Benchmark",
         "select_by_obj": args.select_by_obj,
@@ -618,14 +626,14 @@ def run_inference(idx):
     }
 
     lithosim_para = {
-        "kernels_root": "neural_ilt_package/lithosim/lithosim_kernels/torch_tensor",
+        "kernels_root": Path(KERNEL_ROOT),
         "kernel_num": 24,
     }
 
     # Obtain data_loader from a list of masks & obtain the corresponding bboxes on-the-fly
     nerual_ilt = NeuralILTWrapper(exp_para, image_para, lithosim_para)
     refine_dataset = ILTRefineDataset(
-        data_root=dir_parser("./neural_ilt_package", "dataset"),
+        data_root=Path(DATASET_DIR),
         split="ibm_opc_test_full",
         margin=image_para["bbox_margin"],
         scale_dim_w=image_para["scale_size"],
@@ -644,4 +652,4 @@ if __name__ == "__main__":
     print(args)
     # run_neural_ilt_ibm_bench()
     # run_neural_ilt_ibm_ext_bench()
-    run_inference(idx=5)
+    run_inference(idx=1)

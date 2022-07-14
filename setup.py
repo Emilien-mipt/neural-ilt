@@ -23,11 +23,9 @@ with open(PACKAGE_DIR / "VERSION") as f:
 
 
 def list_reqs(fname: str = "requirements.txt") -> List[str]:
-    try:
-        with (REQUIREMENTS_DIR / fname).open(encoding="utf-8") as fd:
-            return fd.read().splitlines()
-    except FileNotFoundError:
-        required = []
+    with (REQUIREMENTS_DIR / fname).open(encoding="utf-8") as fd:
+        return fd.read().splitlines()
+
 
 
 def get_long_description() -> str:
